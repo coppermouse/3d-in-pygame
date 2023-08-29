@@ -150,10 +150,11 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
 
     # make field of boxes and a teapot
-    for x in range(5):
-        for y in range(5):
+    for x in range(2):
+        for y in range(2):
             if (x,y) == (2,3):
-                make_teapot((x*25-100,-180+y*25))
+                #make_teapot((x*25-100,-180+y*25))
+                pass
             make_box((x*25-100,-180+y*25))
 
     texture = WarpableSurface(pygame.image.load('box.png').convert_alpha())
@@ -190,6 +191,11 @@ if __name__ == '__main__':
                         screen.blit( *warped )
                     break
 
+        # horizon
+        for i in range(1,20):
+            h = (-40/(-200*i)) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
+            pygame.draw.rect( screen, 'blue', (0,h,1000,1))
+
         # draw overlay map (debug)
         c = 350
         k = math.tan( math.radians(fov[0])/2 )
@@ -199,6 +205,7 @@ if __name__ == '__main__':
             for vertex in face:
                 v = vertex
                 screen.set_at( [ int( v + c ) for v in [ v[0], v[2] ] ], 'white' )
+
 
         print(clock.get_fps())
         clock.tick( FPS )
