@@ -9,15 +9,29 @@ from stl import mesh
 import numpy as np
 from numba import njit
 from warpable_surface import WarpableSurface
+import random
 
 FPS = 60
 
 screen_size = ( 700, 400 )
 half_screen_size = [ c//2 for c in screen_size ]
+
 fov = [90,90]
 
+fog = pygame.Color(80,80,80)
+
+# --- thresholds
+steps = 30
+fog_thresholds = [ (-50-i*6, i*(1/steps)) for i in range(steps) ] + [(-1000,1)]
+
+sun_thresholds = [ (i,i/10) for i in range(11) ]
+# ---
+
+sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
+
+
 #@njit( fastmath = True )
-def project_and_color( faces, pointer_data, fov, half_screen_size ):
+def project_and_color( faces, pointer_data, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector ):
 
     polygons_and_colors = list()
 
@@ -25,6 +39,7 @@ def project_and_color( faces, pointer_data, fov, half_screen_size ):
                                                                            # camera points at) and just pick the first
                                                                            # vertex of the face.
                                                                            # this works good enough and is fast.
+                                                                           # TODO: I think it actual should be sorted on y now...
     for e, face in sorted_faces:
 
         quad = False
@@ -52,16 +67,21 @@ def project_and_color( faces, pointer_data, fov, half_screen_size ):
                 z = faces[e+1][2][2]
 
 
-            fx = (x/z) * half_screen_size[0] * (1/math.tan(math.radians(fov[0]/2))) + half_screen_size[0] 
-            fy = (y/z) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
+            fx = (x/y) * half_screen_size[0] * (1/math.tan(math.radians(fov[0]/2))) + half_screen_size[0] 
+            fy = (z/y) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
             polygon.append( (fx,fy) )
+
+        for fti, fog_threshold in enumerate(fog_thresholds):
+            if face[0][1] > fog_threshold[0]:
+                break
+
 
         # check if clockwise or counter-clockwise. if one of these we can skip
         # because that means we see the back of the face.
         v = 0
         for a, b in zip( polygon, polygon[1:] + [polygon[0]] ):
             v += ( b[0] - a[0] ) * ( b[1] + a[1] )
-        if v > 0: continue
+        if v < 0: continue
 
         # calc some kind of "norm" of the face
         surface = np.array( [
@@ -80,37 +100,24 @@ def project_and_color( faces, pointer_data, fov, half_screen_size ):
 
         # if norm gets zero that is not good. then skip this polygon.
         if norm == 0:
-            pass    
+            pass
         else:
 
-            # (hardcoded colors)
-            # find if it is a teapot and if it is have another color
-            color = (0,0,0)
-            for pointer, _type in pointer_data:
-                if e < pointer: 
-                    if _type == 'teapot': 
-                        color = (100,100,100)
-                    if _type == 'box': 
-                        color = (0,0,0)
-                    break
-            color_a, color_b = [color,(30,50,70)]
-            
             face_vector = fv = n / norm
-
-            # hardcoded sunvector
-            v = ( 0.707, 0.707, 0 )
-            
-            # color factor
+            v = sun_vector
             f = fv[0]*v[0]+fv[1]*v[1]+fv[2]*v[2]
             f = (f+1)/2
 
-            # lerp color by factor
-            color_a = np.array( color_a )
-            color_b = np.array( color_b )
-            vector = color_b - color_a
-            color = color_a + vector * f
+            for sti, sun_threshold in enumerate(sun_thresholds):
 
-            polygons_and_colors.append( ( e, polygon, color ) )
+                if f < sun_threshold[1]:
+                    break
+                if f < sun_threshold[1]-0.01:
+                    break
+                if f < sun_threshold[1]+0.01:
+                    break
+
+            polygons_and_colors.append( ( e, polygon, 0, fti, sti ) )
 
     return polygons_and_colors
 
@@ -118,27 +125,32 @@ meshes = list() # <-- NOTE: do not make this into a set, order is relevant
 pointer = 0
 pointer_data = list()
 
-def make_box( xz ):
+def make_box( xyz ):
     global pointer
-    x,z = xz
     _mesh = mesh.Mesh.from_file( 'box.stl' )
+    _mesh.rotate( (0,0,1), random.uniform(-1,1)*0.2 )
     _mesh.vectors *= 4.4
-    _mesh.vectors += (x,-40,z)
+    _mesh.vectors += xyz
     meshes.append(_mesh)
     pointer += len(_mesh.vectors)
     pointer_data.append((pointer, 'box'))
 
 
-def make_teapot( xz ):
+def make_teapot( xyz ):
     global pointer
-    x,z = xz
     _mesh = mesh.Mesh.from_file( 'teapot.stl' )
-    _mesh.rotate( (1,0,0), math.pi/2 )
     _mesh.vectors *= 0.6
-    _mesh.vectors += (x,-35.5,z+4.5)
+    _mesh.vectors += xyz
     meshes.append(_mesh)
     pointer += len(_mesh.vectors)
     pointer_data.append((pointer, 'teapot'))
+
+def color_surface(s,f,color):
+    s = s.copy()
+    m = pygame.Surface(s.get_size(),pygame.SRCALPHA)
+    m.fill((color.r, color.g, color.b, 255*f))
+    s.blit(m,(0,0))
+    return s
 
 
 if __name__ == '__main__':
@@ -150,14 +162,22 @@ if __name__ == '__main__':
     clock = pygame.time.Clock()
 
     # make field of boxes and a teapot
-    for x in range(2):
-        for y in range(2):
+    for x in range(5):
+        for y in range(5):
             if (x,y) == (2,3):
-                #make_teapot((x*25-100,-180+y*25))
-                pass
-            make_box((x*25-100,-180+y*25))
+                make_teapot((x*25-100,-180+y*25, -31))
+            make_box((x*25-100,-180+y*25, -40))
 
-    texture = WarpableSurface(pygame.image.load('box.png').convert_alpha())
+    texture = pygame.image.load('box.png').convert_alpha()
+
+    textures = dict()
+    for fog_index, g in enumerate( fog_thresholds ):
+        for sun_index, t in enumerate( sun_thresholds ):
+            mtexture = color_surface( texture, 0.8, pygame.Color('#112233').lerp(pygame.Color('#444433'),t[1] ) )
+            mtexture = color_surface( mtexture, g[1], fog )
+            
+            textures[(fog_index,sun_index)] = WarpableSurface(mtexture)
+
 
     _quit = False
     while not _quit:
@@ -175,26 +195,46 @@ if __name__ == '__main__':
         screen.fill(0x112233)
 
         for _mesh in meshes:
-            _mesh.rotate( (0,1,0), 0.001 )
+            _mesh.rotate( (0,0,1), -0.001 )
 
         all_faces = np.concatenate( [ c.vectors for c in meshes  ] , axis=0)
 
-        # draw faces on screen
-        for e, polygon, color in project_and_color( all_faces, tuple(pointer_data), tuple(fov), tuple(half_screen_size) ):
-            pygame.draw.polygon( screen, color, polygon )
+        # horizon
+        t = fog_thresholds
+        for i in range(len(t)-1):
+            a = t[i+1][0]
+            b = t[i][0]
+            c = floor_color = pygame.Color('#3b3223')
+            next_height = (-40/a) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
+            this_height = (-40/b) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
+            pygame.draw.rect( screen, c.lerp(fog,t[i+1][1]), (0,next_height,1000, this_height - next_height + 1 ))
 
+
+        teapot_colors = [ pygame.Color(c) for c in ['#112233','#110000']  ]
+
+        # draw faces on screen
+        for e, polygon, color, t,s in project_and_color( 
+            all_faces, 
+            tuple(pointer_data), 
+            tuple(fov), 
+            tuple(half_screen_size),
+            tuple(fog_thresholds),
+            tuple(sun_thresholds),
+            sun_vector,
+        ):
+
+            #color = (29,)*3
+            color = teapot_colors[0].lerp( teapot_colors[1], s/10)
+            pygame.draw.polygon( screen, color, polygon )
             # only texture if box            
             for pointer, _type in pointer_data:
                 if e < pointer: 
                     if _type == 'box': 
-                        warped = texture.warp( polygon  )
+                        warped = textures[
+                            (t,s)
+                        ].warp( polygon  )
                         screen.blit( *warped )
                     break
-
-        # horizon
-        for i in range(1,20):
-            h = (-40/(-200*i)) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
-            pygame.draw.rect( screen, 'blue', (0,h,1000,1))
 
         # draw overlay map (debug)
         c = 350
@@ -204,7 +244,8 @@ if __name__ == '__main__':
         for face in all_faces:
             for vertex in face:
                 v = vertex
-                screen.set_at( [ int( v + c ) for v in [ v[0], v[2] ] ], 'white' )
+                screen.set_at( [ int( v + c ) for v in [ v[0], v[1] ] ], 'white' )
+        pygame.draw.line( screen, 'yellow', pygame.math.Vector2(c,c) + (sun_vector[0]*-100,sun_vector[1]*-100), pygame.math.Vector2(c,c) + (sun_vector[0]*100,sun_vector[1]*100)   )
 
 
         print(clock.get_fps())

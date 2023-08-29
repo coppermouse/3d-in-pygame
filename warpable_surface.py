@@ -3,6 +3,7 @@ import numpy
 import cv2
 import time
 
+
 class WarpableSurface():
 
     def __init__( self, surface ):
@@ -34,7 +35,7 @@ class WarpableSurface():
         warped_rgba = cv2.warpPerspective(
             self.surface_rgba.copy(), pt, 
             dsize = polygon_rect[2:], 
-            flags = cv2.INTER_NEAREST
+            #flags = cv2.INTER_NEAREST
         )
         
         final = pygame.Surface( warped_rgba.shape[0:2], pygame.SRCALPHA  )
