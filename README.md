@@ -1,6 +1,6 @@
 # 3d-in-pygame
 
-NOTE: I am the only contributor on this project, the other account ended up here by me entering an invalid email in one of the commits.
+NOTE: I am the only contributor on this project, the other account ended up here by me entering an invalid email in one of the commits. I have rebased the entire project after I that but account still there. I give it some days, it could be a cache issue.
 
 I do want to give credit to https://github.com/davidpendergast/pygame-utils because my WarpableSurface class was build upon its warp-method. 
 
