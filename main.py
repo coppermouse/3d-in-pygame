@@ -10,6 +10,8 @@ import numpy as np
 from numba import njit
 from warpable_surface import WarpableSurface
 import random
+from numba.typed import List
+
 
 FPS = 60
 
@@ -25,7 +27,7 @@ steps = 30
 fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/steps)) )) for i in range(steps) ] + [(-1000,1)])
 fog_thresholds = tuple([ np.float32(-50-i*6) for i in range(steps) ] + [(np.float32(-1000))])
 
-sun_thresholds = [ (i,i/10) for i in range(11) ]
+sun_thresholds = [ (i,i/5-1) for i in range(11) ]
 # ---
 
 sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
@@ -35,31 +37,24 @@ movie = list()
 
 
 @njit( fastmath = True )
-def project_and_color( faces, pointer_data, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector ):
+def project_and_color( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector, data ):
 
     polygons_and_colors = list()
 
-    sorted_faces = sorted( enumerate(faces), key = lambda a : a[1][0][1]+a[1][0][2]*10 ) # sort by z-axis (since that is where the
-                                                                           # camera points at) and just pick the first
-                                                                           # vertex of the face.
-                                                                           # this works good enough and is fast.
-                                                                           # TODO: I think it actual should be sorted on y now...
-    for e, face in sorted_faces:
+    for face, d in sorted( zip(enumerate(faces), data), key=lambda a:a[0][1][0][1] + a[0][1][0][2]*10   ):
 
-        quad = False
+        e, face = face
 
-        #boxes are quads, quads work a bit different
-        for pointer, _type in pointer_data:
-            if e < pointer: 
-                if _type == 'box': 
-                    quad = True
-                break
+        quad = d == 0
 
-
-        if quad and e % 2 == 1: continue
 
         polygon = []
-        for i in range(3 if not quad else 4):
+
+
+        if quad:
+          if e % 2 == 1: continue
+
+          for i in range(4):
 
             if i < 3:
                 x = face[i][0]
@@ -74,6 +69,20 @@ def project_and_color( faces, pointer_data, fov, half_screen_size, fog_threshold
             fx = (x/y) * half_screen_size[0] * (1/math.tan(math.radians(fov[0]/2))) + half_screen_size[0] 
             fy = (z/y) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
             polygon.append( (fx,fy) )
+
+        else:
+
+          for i in range(3):
+
+            x = face[i][0]
+            y = face[i][1]
+            z = face[i][2]
+
+
+            fx = (x/y) * half_screen_size[0] * (1/math.tan(math.radians(fov[0]/2))) + half_screen_size[0] 
+            fy = (z/y) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
+            polygon.append( (fx,fy) )
+
 
 
 
@@ -114,7 +123,6 @@ def project_and_color( faces, pointer_data, fov, half_screen_size, fog_threshold
             face_vector = fv = n / norm
             v = sun_vector
             f = fv[0]*v[0]+fv[1]*v[1]+fv[2]*v[2]
-            f = (f+1)/2
 
             for sti, sun_threshold in enumerate(sun_thresholds):
 
@@ -125,33 +133,38 @@ def project_and_color( faces, pointer_data, fov, half_screen_size, fog_threshold
                 if f < sun_threshold[1]+0.01:
                     break
 
-            polygons_and_colors.append( ( e, polygon, 0, fti, sti ) )
+            polygons_and_colors.append( ( e, polygon, d, fti, sti ) )
 
     return polygons_and_colors
 
 meshes = list() # <-- NOTE: do not make this into a set, order is relevant
 pointer = 0
 pointer_data = list()
+pointer_data2 = list()
+
+
 
 def make_box( xyz ):
-    global pointer
+    global pointer, pointer_data2
     _mesh = mesh.Mesh.from_file( 'box.stl' )
     _mesh.rotate( (0,0,1), random.uniform(-1,1)*0.2 )
     _mesh.vectors *= 4.4
     _mesh.vectors += xyz
     meshes.append(_mesh)
+    pointer_data2 += ( [0]*len(_mesh.vectors) )
     pointer += len(_mesh.vectors)
     pointer_data.append((pointer, 'box'))
 
 
 def make_teapot( xyz ):
-    global pointer
+    global pointer, pointer_data2
     _mesh = mesh.Mesh.from_file( 'teapot.stl' )
     _mesh.rotate( (0,0,1), 0 )
     _mesh.vectors *= 0.6
     _mesh.vectors += xyz
     meshes.append(_mesh)
     pointer += len(_mesh.vectors)
+    pointer_data2 += ( [1]*len(_mesh.vectors) )
     pointer_data.append((pointer, 'teapot'))
 
 def color_surface(s,f,color):
@@ -177,6 +190,8 @@ if __name__ == '__main__':
                 make_teapot((x*25-99,-180+y*25, -31))
             make_box((x*25-100,-180+y*25, -40))
 
+    pointer_data3 = List(pointer_data2)
+
     texture = pygame.image.load('box.png').convert_alpha()
 
     textures = dict()
@@ -185,7 +200,7 @@ if __name__ == '__main__':
         for sun_index, t in enumerate( sun_thresholds ):
 
             key = ( fog_index, sun_index )
-            c = pygame.Color('#112233').lerp(pygame.Color('#444433'),t[1] )
+            c = pygame.Color('#112233').lerp(pygame.Color('#444433'),(t[1]+1)/2 )
 
             # box texture
             mtexture = color_surface( texture, 0.8, c )
@@ -235,28 +250,24 @@ if __name__ == '__main__':
         teapot_colors = [ pygame.Color(c) for c in ['#112233','#110000']  ]
 
         # draw faces on screen
-        for e, polygon, color, t,s in project_and_color( 
+        for e, polygon, d, t,s in project_and_color( 
             all_faces, 
-            tuple(pointer_data), 
             tuple(fov), 
             tuple(half_screen_size),
             tuple(fog_thresholds),
             tuple(sun_thresholds),
             sun_vector,
+            pointer_data3
         ):
-
             key = (t,s)
            
-            # only texture if box            
-            for pointer, _type in pointer_data:
-                if e < pointer: 
-                    if _type == 'box': 
-                        warped = textures[key].warp( polygon  )
-                        screen.blit( *warped )
-                    else:
-                        color = colors['teapot'][key]
-                        pygame.draw.polygon( screen, color, polygon )
-                    break
+            _type = d
+            if _type == 0: 
+                warped = textures[key].warp( polygon  )
+                screen.blit( *warped )
+            else:
+                color = colors['teapot'][key]
+                pygame.draw.polygon( screen, color, polygon )
 
         # draw overlay map (debug)
         if 0:
@@ -271,7 +282,7 @@ if __name__ == '__main__':
             pygame.draw.line( screen, 'yellow', pygame.math.Vector2(c,c) + (sun_vector[0]*-100,sun_vector[1]*-100), pygame.math.Vector2(c,c) + (sun_vector[0]*100,sun_vector[1]*100)   )
 
 
-        movie.append(screen.copy())
+        #movie.append(screen.copy())
 
 
         if len(movie) > 386:
