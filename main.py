@@ -13,16 +13,17 @@ import random
 
 FPS = 60
 
-screen_size = ( 700, 400 )
+screen_size = ( 700*2, 400*2 )
 half_screen_size = [ c//2 for c in screen_size ]
 
 fov = [90,90]
 
-fog = pygame.Color(80,80,80)
+fog = pygame.Color(50,55,60)
 
 # --- thresholds
 steps = 30
-fog_thresholds = [ (-50-i*6, i*(1/steps)) for i in range(steps) ] + [(-1000,1)]
+fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/steps)) )) for i in range(steps) ] + [(-1000,1)])
+fog_thresholds = tuple([ np.float32(-50-i*6) for i in range(steps) ] + [(np.float32(-1000))])
 
 sun_thresholds = [ (i,i/10) for i in range(11) ]
 # ---
@@ -30,12 +31,15 @@ sun_thresholds = [ (i,i/10) for i in range(11) ]
 sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
 
 
-#@njit( fastmath = True )
+movie = list()
+
+
+@njit( fastmath = True )
 def project_and_color( faces, pointer_data, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector ):
 
     polygons_and_colors = list()
 
-    sorted_faces = sorted( enumerate(faces), key = lambda a : a[1][0][2] ) # sort by z-axis (since that is where the
+    sorted_faces = sorted( enumerate(faces), key = lambda a : a[1][0][1]+a[1][0][2]*10 ) # sort by z-axis (since that is where the
                                                                            # camera points at) and just pick the first
                                                                            # vertex of the face.
                                                                            # this works good enough and is fast.
@@ -71,8 +75,12 @@ def project_and_color( faces, pointer_data, fov, half_screen_size, fog_threshold
             fy = (z/y) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
             polygon.append( (fx,fy) )
 
-        for fti, fog_threshold in enumerate(fog_thresholds):
-            if face[0][1] > fog_threshold[0]:
+
+
+        for fti in range(len(fog_thresholds)):
+            c = fog_thresholds[fti]
+            a = face[0][1]
+            if a > c:
                 break
 
 
@@ -139,6 +147,7 @@ def make_box( xyz ):
 def make_teapot( xyz ):
     global pointer
     _mesh = mesh.Mesh.from_file( 'teapot.stl' )
+    _mesh.rotate( (0,0,1), 0 )
     _mesh.vectors *= 0.6
     _mesh.vectors += xyz
     meshes.append(_mesh)
@@ -157,7 +166,7 @@ if __name__ == '__main__':
     pygame.init()
     screen = pygame.display.set_mode( 
         screen_size, 
-        pygame.SCALED 
+        #pygame.SCALED 
     )
     clock = pygame.time.Clock()
 
@@ -165,22 +174,35 @@ if __name__ == '__main__':
     for x in range(5):
         for y in range(5):
             if (x,y) == (2,3):
-                make_teapot((x*25-100,-180+y*25, -31))
+                make_teapot((x*25-99,-180+y*25, -31))
             make_box((x*25-100,-180+y*25, -40))
 
     texture = pygame.image.load('box.png').convert_alpha()
 
     textures = dict()
-    for fog_index, g in enumerate( fog_thresholds ):
+    colors = { 'teapot': {} }
+    for fog_index, g in enumerate( fog_thresholds_strength ):
         for sun_index, t in enumerate( sun_thresholds ):
-            mtexture = color_surface( texture, 0.8, pygame.Color('#112233').lerp(pygame.Color('#444433'),t[1] ) )
-            mtexture = color_surface( mtexture, g[1], fog )
-            
-            textures[(fog_index,sun_index)] = WarpableSurface(mtexture)
 
+            key = ( fog_index, sun_index )
+            c = pygame.Color('#112233').lerp(pygame.Color('#444433'),t[1] )
+
+            # box texture
+            mtexture = color_surface( texture, 0.8, c )
+            mtexture = color_surface( mtexture, g[1], fog )
+            textures[key] = WarpableSurface(mtexture)
+
+            # colors
+            colors['teapot'][key] = pygame.Color('#114433').lerp( c, 0.9 )
+
+
+
+
+    f = 0
 
     _quit = False
     while not _quit:
+        f += 1
         for event in  pygame.event.get():
             if event.type == pygame.QUIT:
                 _quit = True
@@ -192,22 +214,22 @@ if __name__ == '__main__':
 
         fov[1] = fov[0] * ( screen_size[1] / screen_size[0] ) # <--- not sure about this one
 
-        screen.fill(0x112233)
+        screen.fill(fog)
 
         for _mesh in meshes:
-            _mesh.rotate( (0,0,1), -0.001 )
+            _mesh.rotate( (0,0,1), math.sin(f/60)*-0.004 )
 
         all_faces = np.concatenate( [ c.vectors for c in meshes  ] , axis=0)
 
         # horizon
-        t = fog_thresholds
+        t = fog_thresholds_strength
         for i in range(len(t)-1):
             a = t[i+1][0]
             b = t[i][0]
-            c = floor_color = pygame.Color('#3b3223')
+            c = floor_color = pygame.Color('#222225')
             next_height = (-40/a) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
             this_height = (-40/b) * half_screen_size[1] * (1/math.tan(math.radians(fov[1]/2))) + half_screen_size[1] 
-            pygame.draw.rect( screen, c.lerp(fog,t[i+1][1]), (0,next_height,1000, this_height - next_height + 1 ))
+            pygame.draw.rect( screen, c.lerp(fog,t[i+1][1]), (0,next_height,2000, this_height - next_height + 1 ))
 
 
         teapot_colors = [ pygame.Color(c) for c in ['#112233','#110000']  ]
@@ -223,34 +245,62 @@ if __name__ == '__main__':
             sun_vector,
         ):
 
-            #color = (29,)*3
-            color = teapot_colors[0].lerp( teapot_colors[1], s/10)
-            pygame.draw.polygon( screen, color, polygon )
+            key = (t,s)
+           
             # only texture if box            
             for pointer, _type in pointer_data:
                 if e < pointer: 
                     if _type == 'box': 
-                        warped = textures[
-                            (t,s)
-                        ].warp( polygon  )
+                        warped = textures[key].warp( polygon  )
                         screen.blit( *warped )
+                    else:
+                        color = colors['teapot'][key]
+                        pygame.draw.polygon( screen, color, polygon )
                     break
 
         # draw overlay map (debug)
-        c = 350
-        k = math.tan( math.radians(fov[0])/2 )
-        f = 600
-        pygame.draw.polygon( screen, 'white', [(c-f*k,c-f), (c,c),(c+f*k,c-f)],1 )
-        for face in all_faces:
-            for vertex in face:
-                v = vertex
-                screen.set_at( [ int( v + c ) for v in [ v[0], v[1] ] ], 'white' )
-        pygame.draw.line( screen, 'yellow', pygame.math.Vector2(c,c) + (sun_vector[0]*-100,sun_vector[1]*-100), pygame.math.Vector2(c,c) + (sun_vector[0]*100,sun_vector[1]*100)   )
+        if 0:
+            c = 350
+            k = math.tan( math.radians(fov[0])/2 )
+            f = 600
+            pygame.draw.polygon( screen, 'white', [(c-f*k,c-f), (c,c),(c+f*k,c-f)],1 )
+            for face in all_faces:
+                for vertex in face:
+                    v = vertex
+                    screen.set_at( [ int( v + c ) for v in [ v[0], v[1] ] ], 'white' )
+            pygame.draw.line( screen, 'yellow', pygame.math.Vector2(c,c) + (sun_vector[0]*-100,sun_vector[1]*-100), pygame.math.Vector2(c,c) + (sun_vector[0]*100,sun_vector[1]*100)   )
+
+
+        movie.append(screen.copy())
+
+
+        if len(movie) > 386:
+            break
 
 
         print(clock.get_fps())
         clock.tick( FPS )
         pygame.display.update()
+
+
+    _quit = False
+    while not _quit:
+
+        for event in  pygame.event.get():
+            if event.type == pygame.QUIT:
+                _quit = True
+ 
+
+        
+
+        screen.blit( movie[0], (0,0) )
+
+        movie.append(movie.pop(0))
+
+        clock.tick( FPS )
+        pygame.display.update()
+
+
 
     pygame.quit()
 
