@@ -1,4 +1,4 @@
-
+import random
 import pygame
 from objects import Objects
 import math
@@ -24,7 +24,7 @@ def setup_scene():
                 tpp = (x*25-99,-180+y*25, -31)
                 objects.add( 'teapot.stl', tpp, scale = 0.6)
             bp = (x*25-100,-180+y*25, -40)
-            objects.add( 'box.stl', bp)
+            objects.add( 'box.stl', bp, scale = 4.4, z_rot = random.uniform(-1,1)*0.2)
 
     return objects
 
@@ -49,7 +49,3 @@ def scene_while_key( key ):
 
 def on_scene_update():
     return
-    return
-    global f
-    f += 1
-    objects.rotate_world( (0,0,1), math.sin(f/60)*-0.004 )
