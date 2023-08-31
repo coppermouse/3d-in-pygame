@@ -24,8 +24,8 @@ fog = pygame.Color(50,55,60)
 
 # --- thresholds
 steps = 30
-fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/steps)) )) for i in range(steps) ] + [(-1000,1)])
-fog_thresholds = tuple([ np.float32(-50-i*6) for i in range(steps) ] + [(np.float32(-1000))])
+fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/steps)) )) for i in range(steps) ] + [(np.float32(-1000),1)])
+fog_thresholds = tuple( [ c[0] for c in fog_thresholds_strength ] )
 
 sun_thresholds = [ (i,i/20-1) for i in range(41) ]
 # ---
@@ -36,6 +36,8 @@ sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
 movie = list()
 
 
+def get_fog_thresholds_strength():
+    return fog_thresholds_strength
 
 if __name__ == '__main__':
     pygame.init()
