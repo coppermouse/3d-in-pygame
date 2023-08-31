@@ -1,7 +1,7 @@
 import math
 from numba import njit
 
-@njit( fastmath = True )
+#@njit( fastmath = True )
 def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector, fnd ):
 
     fx = (1/math.tan(math.radians(fov[0]/2)))
@@ -18,6 +18,7 @@ def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_v
             for i in range(3):
 
                 x = face[i][0]
+
                 y = face[i][1]
                 z = face[i][2]
 
@@ -64,11 +65,11 @@ def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_v
 
 
         for sti, sun_threshold in enumerate(sun_thresholds):
-            if f < sun_threshold[1]:
+            if f < sun_threshold:
                 break
-            if f < sun_threshold[1]-0.01:
+            if f < sun_threshold-0.01:
                 break
-            if f < sun_threshold[1]+0.01:
+            if f < sun_threshold+0.01:
                 break
 
         yield  ( polygon, _type, (fti, sti) )

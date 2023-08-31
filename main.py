@@ -27,7 +27,7 @@ steps = 30
 fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/steps)) )) for i in range(steps) ] + [(np.float32(-1000),1)])
 fog_thresholds = tuple( [ c[0] for c in fog_thresholds_strength ] )
 
-sun_thresholds = [ (i,i/20-1) for i in range(41) ]
+sun_thresholds = [ i/20-1 for i in range(41) ]
 # ---
 
 sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
@@ -36,8 +36,17 @@ sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
 movie = list()
 
 
+
+def get_fog():
+    return fog
+
 def get_fog_thresholds_strength():
     return fog_thresholds_strength
+
+
+def get_sun_thresholds():
+    return sun_thresholds
+
 
 if __name__ == '__main__':
     pygame.init()
@@ -93,10 +102,10 @@ if __name__ == '__main__':
 
         for polygon, _type, key in polygons:
             if _type == 0: 
-                warped = textures.textures[key].warp( polygon  )
+                warped = textures.get('box',key)[0].warp( polygon  )
                 screen.blit( *warped )
             else:
-                color = textures.colors['teapot'][key]
+                color = textures.get( 'teapot', key )[0]
                 pygame.draw.polygon( screen, color, polygon )
 
         # draw overlay map (debug)

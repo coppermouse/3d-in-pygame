@@ -1,39 +1,66 @@
+# ---------------------------------------- 
+# file: textures.py
+# author: coppermouse
+# ----------------------------------------
+
 import pygame
 from warpable_surface import WarpableSurface
 
-def color_surface(s,f,color):
-    s = s.copy()
-    m = pygame.Surface(s.get_size(),pygame.SRCALPHA)
-    m.fill((color.r, color.g, color.b, 255*f))
-    s.blit(m,(0,0))
-    return s
-
+def color_surface( surface, factor, color ):
+    surface = surface.copy()
+    color_mask = pygame.Surface( surface.get_size(), pygame.SRCALPHA )
+    color_mask.fill( ( color.r, color.g, color.b, 255 * factor ))
+    surface.blit( color_mask, (0,0) )
+    return surface
 
 
 class Textures:
 
     def __init__( self ):
-        from main import fog_thresholds_strength
-        from main import sun_thresholds
-        from main import fog
 
-        texture = pygame.image.load('box.png').convert_alpha()
-        textures = dict()
-        colors = { 'teapot': {} }
-        for fog_index, g in enumerate( fog_thresholds_strength ):
-            for sun_index, t in enumerate( sun_thresholds ):
-                key = ( fog_index, sun_index )
-                c = pygame.Color('#112233').lerp(pygame.Color('#444433'),(t[1]+1)/2 )
+        # Textures at the moment just loads one texture (box) and one color (teapot).
+        # This is hard coded. In a later version this should of course be a lot more dynamic
+        # and based on some kind of config somewhere.
+
+        from main import get_fog_thresholds_strength
+        from main import get_sun_thresholds
+        from main import get_fog
+        from scene import sun_colors
+        from scene import sun_color_factor
+        
+        sun_color_a, sun_color_b = sun_colors
+        fog = get_fog()
+
+        box_texture = pygame.image.load('box.png').convert_alpha()
+        teapot_color = '#114433'
+
+        self.textures = { 'box': {} }
+        self.colors = { 'teapot': {} }
+
+        # every color and texture stores all its combination of environmental colors (fog and sun)
+        for fog_index, fog_threshold_strength in enumerate( get_fog_thresholds_strength() ):
+            for sun_index, sun_threshold in enumerate( get_sun_thresholds() ):
+
+                _, fog_strength = fog_threshold_strength
+
+                sun_fog = ( fog_index, sun_index )
+                sun_color = pygame.Color(
+                    sun_color_a).lerp(pygame.Color(sun_color_b),(sun_threshold+1)/2 )
 
                 # box texture
-                mtexture = color_surface( texture, 0.8, c )
-                mtexture = color_surface( mtexture, g[1], fog )
-                textures[key] = WarpableSurface(mtexture)
+                texture = color_surface( color_surface(
+                    box_texture, sun_color_factor, sun_color ),  fog_strength, fog )
+                self.textures['box'][sun_fog] = WarpableSurface( texture )
 
-                # colors
-                colors['teapot'][key] = pygame.Color('#114433').lerp( c, 0.9 )
+                # teapot color
+                self.colors['teapot'][sun_fog] = pygame.Color( teapot_color ).lerp( 
+                    sun_color, sun_color_factor ).lerp( fog, fog_strength )
 
-        self.textures = textures
-        self.colors = colors
+
+    def get( self, key, fog_sun ):
+        if key == 'teapot':
+            return ( self.colors['teapot'][fog_sun], 'color' )
+        elif key == 'box':
+            return ( self.textures['box'][fog_sun], 'texture' )
 
 

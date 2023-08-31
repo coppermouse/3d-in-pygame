@@ -9,6 +9,10 @@ f = 0
 
 floor_color = '#222225' 
 
+sun_colors = ('#112233', '#444433')
+sun_color_factor = 0.8
+
+
 def setup_scene():
     # make field of boxes and a teapot
     g['camera'] = [0,0,40]
