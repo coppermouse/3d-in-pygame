@@ -12,12 +12,11 @@ from project import project
 from scene import setup_scene
 from scene import on_scene_update
 from horizon import draw_horizon
+from globals import g
 FPS = 60
 
 screen_size = ( 700*2, 400*2 )
 half_screen_size = [ c//2 for c in screen_size ]
-
-fov = [90,90]
 
 fog = pygame.Color(50,55,60)
 
@@ -33,7 +32,6 @@ sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
 
 
 movie = list()
-
 
 
 
@@ -62,7 +60,7 @@ if __name__ == '__main__':
                 if event.key == pygame.K_p:
                     fov[0] -= 1
 
-        fov[1] = fov[0] * ( screen_size[1] / screen_size[0] ) # <--- not sure about this one
+        g['fov'][1] = g['fov'][0] * ( screen_size[1] / screen_size[0] ) # <--- not sure about this one
 
         on_scene_update()
         screen.blit( draw_horizon(), (0,0) )
@@ -70,7 +68,7 @@ if __name__ == '__main__':
         # draw faces on screen
         polygons = project( 
             objects.faces, 
-            tuple(fov), 
+            tuple(g['fov']), 
             tuple(half_screen_size),
             tuple(fog_thresholds),
             tuple(sun_thresholds),
@@ -92,10 +90,16 @@ if __name__ == '__main__':
             k = math.tan( math.radians(fov[0])/2 )
             f = 600
             pygame.draw.polygon( screen, 'white', [(c-f*k,c-f), (c,c),(c+f*k,c-f)],1 )
-            for face in all_faces:
+            for face in objects.faces:
                 for vertex in face:
                     v = vertex
                     screen.set_at( [ int( v + c ) for v in [ v[0], v[1] ] ], 'white' )
+
+            
+            pygame.draw.line( screen, 'blue', (0,c-200),(1000,c-200))
+
+
+
             pygame.draw.line( screen, 'yellow', pygame.math.Vector2(c,c) + (sun_vector[0]*-100,sun_vector[1]*-100), pygame.math.Vector2(c,c) + (sun_vector[0]*100,sun_vector[1]*100)   )
 
 
