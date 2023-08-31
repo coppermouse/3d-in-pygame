@@ -10,6 +10,8 @@ from numba.typed import List
 from textures import Textures
 from project import project
 from scene import setup_scene
+from scene import scene_on_key
+from scene import scene_while_key
 from scene import on_scene_update
 from horizon import draw_horizon
 from globals import g
@@ -48,6 +50,7 @@ if __name__ == '__main__':
     objects = setup_scene()
     fnd = List(objects.fnd)
 
+    keys_down = set()
 
     _quit = False
     while not _quit:
@@ -55,10 +58,20 @@ if __name__ == '__main__':
             if event.type == pygame.QUIT:
                 _quit = True
             elif event.type == pygame.KEYDOWN:
+
+                scene_on_key(event.key)
+
+                keys_down.add( event.key )
+
                 if event.key == pygame.K_o:
                     fov[0] += 1
                 if event.key == pygame.K_p:
                     fov[0] -= 1
+            elif event.type == pygame.KEYUP:
+                keys_down.discard( event.key )
+        
+        for key in keys_down:
+            scene_while_key( key )
 
         g['fov'][1] = g['fov'][0] * ( screen_size[1] / screen_size[0] ) # <--- not sure about this one
 

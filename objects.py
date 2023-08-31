@@ -72,6 +72,9 @@ class Objects:
     def rotate_world(self,axis, radians):
         rotate( self.faces, self.normals, axis, radians  )
 
+    def offset_world( self, offset ):
+        self.faces += offset
+
 
 if __name__ == '__main__':
     import pygame
