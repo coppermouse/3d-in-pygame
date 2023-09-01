@@ -3,6 +3,7 @@
 # author: coppermouse
 # ----------------------------------------
 
+import os
 import pygame
 from warpable_surface import WarpableSurface
 
@@ -22,6 +23,7 @@ class Textures:
         # This is hard coded. In a later version this should of course be a lot more dynamic
         # and based on some kind of config somewhere.
 
+        from main import get_main_path
         from main import get_fog_thresholds_strength
         from main import get_sun_thresholds
         from main import get_fog
@@ -31,7 +33,7 @@ class Textures:
         sun_color_a, sun_color_b = sun_colors
         fog = get_fog()
 
-        box_texture = pygame.image.load('box.png').convert_alpha()
+        box_texture = pygame.image.load( os.path.join( get_main_path(), 'box.png' ) ).convert_alpha()
         teapot_color = '#440000'
 
         self.textures = { 'box': {} }

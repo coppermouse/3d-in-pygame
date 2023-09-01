@@ -3,6 +3,7 @@
 # author: coppermouse
 # ----------------------------------------
 
+import os
 import pygame
 import math
 from numba.typed import List
@@ -19,6 +20,10 @@ FPS = 60
 
 screen_size = ( 700*2, 400*2 )
 half_screen_size = [ c//2 for c in screen_size ]
+
+
+def get_main_path():
+    return os.path.dirname( os.path.realpath(__file__) ) 
 
 
 def get_sun_vector():

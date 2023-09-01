@@ -3,6 +3,7 @@
 # author: coppermouse
 # ----------------------------------------
 
+import os
 import math
 import random
 from stl import mesh
@@ -65,7 +66,9 @@ class Objects:
 
 
     def add( self, object_name, offset, scale, z_rot = 0 ):
-        _mesh = mesh.Mesh.from_file( objects[ object_name ][0] )
+        from main import get_main_path
+       
+        _mesh = mesh.Mesh.from_file( os.path.join( get_main_path(), objects[ object_name ][0] ))
         
         _mesh.rotate( [0,0,1], z_rot )
         faces = _mesh.vectors*scale + offset
