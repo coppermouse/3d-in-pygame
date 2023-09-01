@@ -44,8 +44,7 @@ class Textures:
                 _, fog_strength = fog_threshold_strength
 
                 sun_fog = ( fog_index, sun_index )
-                sun_color = pygame.Color(
-                    sun_color_a).lerp(pygame.Color(sun_color_b),(sun_threshold+1)/2 )
+                sun_color = sun_color_a.lerp( sun_color_b, ( sun_threshold + 1 ) / 2 )
 
                 # box texture
                 texture = color_surface( color_surface(

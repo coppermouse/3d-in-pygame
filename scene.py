@@ -1,34 +1,49 @@
+# ---------------------------------------- 
+# file: scene.py
+# author: coppermouse
+# ----------------------------------------
+
 import random
 import pygame
+import numpy as np
 from objects import Objects
-import math
 from globals import g
 
 objects = None
-f = 0
 
-floor_color = '#222225' 
-floor_color = '#232228'
+floor_color = pygame.Color('#232228')
 
-sun_colors = ('#112233', '#444433')
-
-sun_colors = '#071d42', '#626648'
-
+sun_colors = pygame.Color('#071d42'), pygame.Color('#626648')
 sun_color_factor = 0.65
+sun_thresholds = [ i/20-1 for i in range(41) ] # should (must?) start at -1 and end at +1
 
+fog = pygame.Color('#434a55')
+
+fog_steps = 30
+fog_thresholds_strength = tuple([ tuple(( np.float32(-50-i*6), np.float32(i*(1/fog_steps)) )) for i in range(fog_steps) ] + [(np.float32(-1000),1)])
+fog_thresholds = tuple( [ c[0] for c in fog_thresholds_strength ] )
+
+sun_vector = tuple(pygame.math.Vector3( (-1,0,0) ).rotate( 45, ( 0, 0.1, 1 ) ))
 
 def setup_scene():
-    # make field of boxes and a teapot
-    g['camera'] = [0,0,40]
+
     global objects
     objects = Objects()
+
+    init_height = 40
+
+    g['camera'] = [ 0, 0, init_height ]
+
+    # make field of boxes and a teapot
     for x in range(4):
         for y in range(4):
-            if (x,y) == (2,3):
-                tpp = (x*25-99,-180+y*25, -31)
-                objects.add( 'teapot', tpp, scale = 0.6)
-            bp = (x*25-100,-180+y*25, -40)
-            objects.add( 'box', bp, scale = 4.4, z_rot = random.uniform(-1,1)*0.2)
+
+            if ( x,y ) == ( 2,3 ):
+                tpp = ( x*25-99, -180+y*25, -init_height + 9 )
+                objects.add( 'teapot', tpp, scale = 0.6 )
+
+            bp = ( x*25-100, -180+y*25, -init_height )
+            objects.add( 'box', bp, scale = 4.4, z_rot = random.uniform(-1,1) * 0.2 )
 
     return objects
 
@@ -36,20 +51,20 @@ def setup_scene():
 def scene_on_key( key ):
     pass
 
+
 def scene_while_key( key ):
-    from globals import g
-    if key == pygame.K_w:
-        objects.offset_world([0,0,-1])
-        g['camera'][2] += 1
-    if key == pygame.K_s:
-        objects.offset_world([0,0,1])
-        g['camera'][2] -= 1
-    if key == pygame.K_a:
-        objects.rotate_world( (0,0,1), 0.02 )
-    if key == pygame.K_d:
-        objects.rotate_world( (0,0,1), -0.02 )
- 
+
+    if key in ( pygame.K_w, pygame.K_s ):
+        f = 1 if key == pygame.K_w else -1
+        objects.offset_world( [ 0, 0, -1*f ] )
+        g['camera'][2] += 1 * f
+
+    if key in ( pygame.K_a, pygame.K_d ):
+        f = 1 if key == pygame.K_a else -1
+        objects.rotate_world( (0,0,1), 0.02*f )
 
 
 def on_scene_update():
-    return
+    pass
+
+
