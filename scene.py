@@ -8,9 +8,13 @@ objects = None
 f = 0
 
 floor_color = '#222225' 
+floor_color = '#232228'
 
 sun_colors = ('#112233', '#444433')
-sun_color_factor = 0.8
+
+sun_colors = '#071d42', '#626648'
+
+sun_color_factor = 0.65
 
 
 def setup_scene():
@@ -22,9 +26,9 @@ def setup_scene():
         for y in range(4):
             if (x,y) == (2,3):
                 tpp = (x*25-99,-180+y*25, -31)
-                objects.add( 'teapot.stl', tpp, scale = 0.6)
+                objects.add( 'teapot', tpp, scale = 0.6)
             bp = (x*25-100,-180+y*25, -40)
-            objects.add( 'box.stl', bp, scale = 4.4, z_rot = random.uniform(-1,1)*0.2)
+            objects.add( 'box', bp, scale = 4.4, z_rot = random.uniform(-1,1)*0.2)
 
     return objects
 

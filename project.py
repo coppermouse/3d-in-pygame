@@ -1,37 +1,48 @@
+# ---------------------------------------- 
+# file: main.py
+# author: coppermouse
+# ----------------------------------------
+
 import math
 from numba import njit
 
-#@njit( fastmath = True )
+@njit( fastmath = True )
 def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_vector, fnd ):
 
     fx = (1/math.tan(math.radians(fov[0]/2)))
     fy = (1/math.tan(math.radians(fov[1]/2)))
-    for e, face in sorted(fnd, key=lambda a:a[1][0][0][1] + a[1][0][0][2]*10   ):
-        face, normal, _type = face
+    for e, face_normal_type in sorted(
+        fnd, # fnd contain index, faces, normals and data/type 
+        key = lambda a:a[1][0][0][1] + a[1][0][0][2]*10 # <-- this solution works good with this demo
+                                                        #     but this needs to be adapted to the camera
+                                                        #     for a better more universal solution
+    ):
+        face, normal, _type = face_normal_type
 
-        # -- build 2d polygon
+        # -- build projected 2d polygon
         quad = _type == 0
         polygon = []
         if quad:
             if e % 2 == 1: continue
 
             for i in range(3):
-
                 x = face[i][0]
-
                 y = face[i][1]
                 z = face[i][2]
 
                 px = (x/y) * half_screen_size[0] * fx + half_screen_size[0] 
                 py = (z/y) * half_screen_size[1] * fy + half_screen_size[1] 
-                polygon.append( (px,py) )
+                polygon.append( ( px, py ) )
 
             x = faces[e+1][2][0]
             y = faces[e+1][2][1]
             z = faces[e+1][2][2]
+            
+            # yeah, I note that there is the same code twice here, writting code like this
+            # is because performance.
             px = (x/y) * half_screen_size[0] * fx + half_screen_size[0] 
             py = (z/y) * half_screen_size[1] * fy + half_screen_size[1] 
-            polygon.append( (px,py) )
+            polygon.append( ( px, py ) )
 
         else:
 
@@ -40,7 +51,7 @@ def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_v
                 x,y,z = v
                 px = (x/y) * half_screen_size[0] * fx + half_screen_size[0] 
                 py = (z/y) * half_screen_size[1] * fy + half_screen_size[1] 
-                polygon.append( (px,py) )
+                polygon.append( ( px, py ) )
         # --
 
         # check if clockwise or counter-clockwise. if one of these we can skip
@@ -52,24 +63,17 @@ def project( faces, fov, half_screen_size, fog_thresholds, sun_thresholds, sun_v
 
 
         # set fog
-        for fti in range(len(fog_thresholds)):
-            c = fog_thresholds[fti]
-            a = face[0][1]
-            if a > c:
+        for fti in range( len(fog_thresholds) ):
+            if face[0][1] > fog_thresholds[fti]:
                 break
 
         # set sun value
-        face_vector = fv = normal
+        n = normal
         v = sun_vector
-        f = fv[0]*v[0]+fv[1]*v[1]+fv[2]*v[2]
+        f = n[0]*v[0] + n[1]*v[1] + n[2]*v[2]
 
-
-        for sti, sun_threshold in enumerate(sun_thresholds):
+        for sti, sun_threshold in enumerate( sun_thresholds ):
             if f < sun_threshold:
-                break
-            if f < sun_threshold-0.01:
-                break
-            if f < sun_threshold+0.01:
                 break
 
         yield  ( polygon, _type, (fti, sti) )

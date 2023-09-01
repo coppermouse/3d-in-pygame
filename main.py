@@ -20,7 +20,7 @@ FPS = 60
 screen_size = ( 700*2, 400*2 )
 half_screen_size = [ c//2 for c in screen_size ]
 
-fog = pygame.Color(50,55,60)
+fog = pygame.Color('#434a55')
 
 # --- thresholds
 steps = 30
@@ -30,7 +30,7 @@ fog_thresholds = tuple( [ c[0] for c in fog_thresholds_strength ] )
 sun_thresholds = [ i/20-1 for i in range(41) ]
 # ---
 
-sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0,1) ))
+sun_vector = tuple(pygame.math.Vector3((-1,0,0)).rotate( 45, (0,0.1,1) ))
 
 
 movie = list()

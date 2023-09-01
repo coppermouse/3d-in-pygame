@@ -32,7 +32,7 @@ class Textures:
         fog = get_fog()
 
         box_texture = pygame.image.load('box.png').convert_alpha()
-        teapot_color = '#114433'
+        teapot_color = '#440000'
 
         self.textures = { 'box': {} }
         self.colors = { 'teapot': {} }
