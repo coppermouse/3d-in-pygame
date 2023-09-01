@@ -56,12 +56,26 @@ def scene_while_key( key ):
 
     if key in ( pygame.K_w, pygame.K_s ):
         f = 1 if key == pygame.K_w else -1
+        n = g['camera'][2] + 1 * f
+
+        if 10 > n > 60: return
+
         objects.offset_world( [ 0, 0, -1*f ] )
-        g['camera'][2] += 1 * f
+        g['camera'][2] = n
+        
 
     if key in ( pygame.K_a, pygame.K_d ):
         f = 1 if key == pygame.K_a else -1
-        objects.rotate_world( (0,0,1), 0.02*f )
+
+        r = 0.02*f
+
+        n = g['camera-direction'].rotate_rad( r, (0,0,1) )  
+        v = n.angle_to( [0,1,0]  )
+
+        if abs(v) > 35: return
+
+        g['camera-direction'] = n
+        objects.rotate_world( (0,0,1), r )
 
 
 def on_scene_update():
